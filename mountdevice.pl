@@ -32,6 +32,8 @@ sub mountdevice {
 	
 	#@target = ("TARGET", mountpoint)
 	# check if device is mounted
+	# it may be mounted at multiple locations
+	# one of the locations may or may not be correct
 	if (@target) {
 		# device is mounted
 
@@ -59,13 +61,14 @@ sub mountdevice {
 			foreach my $item (@target) {
 				if ("$item" ne "$mtpt") {
 					# wrong mount point, umount it
-					$rc = system("umount $item");
+					$rc = system("umount -v $item");
 					die "Could not umount $label from $item: $!\n" unless $rc == 0;
 				} else {
 					# correct mount point
 					# set a flag to indicate
 					# a mount point is correct
 					$correctmountpoint = "true";
+					print "$label is mounted multiple times, also at $item\n";
 				}
 			}
 		} # end of if target == 1
