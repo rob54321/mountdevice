@@ -29,7 +29,10 @@ sub mountdevice {
 
 	# flag for indicating if a correct mount is found
 	my $correctmountpoint = "false";
-	
+	# list for mounted options
+	# to compare to requested options
+	my @mountedoptions;
+		
 	#@target = ("TARGET", mountpoint)
 	# check if device is mounted
 	# it may be mounted at multiple locations
@@ -43,9 +46,47 @@ sub mountdevice {
 		# check mountpoint and if only mounted once
 		if (@target == 1) {
 			if ("$target[0]" eq "$mtpt") {
-				# correctly mounted in one place only
-				print "$label is mounted at $mtpt\n";
-				return;
+				# mounted at correct location and no multiple mounts
+				# check the mounted options are the same as requested options
+				# get the mounted options
+				@mountedoptions = `findmnt --source LABEL=$label -o OPTIONS`;
+
+				# remove header
+				shift @mountedoptions;
+				chomp @mountedoptions;
+
+				# only check for rw or ro options
+				# if requested options is undefined
+				# then options are rw
+				if (! defined($options)) {
+					# no options requested
+					# defaults are rw
+					if ($mountedoptions[0] =~ /rw/) {
+						# requested options and mounted options are the same
+						print "$label is mounted rw at $mtpt\n";
+						return;
+					} else {
+						# mounted options are different to requested options
+						$rc = system("umount $mtpt");
+						die "Could not umount $label from $mtpt, $mountedoptions[0] are different to requested options: $!\n" unless $rc == 0;
+						print "umounted $label from $mtpt, mounted options $mountedoptions[0], should be rw\n";
+					}
+				} else {
+					# requested options are defined,
+					# can only be ro or rw
+					# if mounted options are the same as requested options
+					# then return else umount.
+					return if $options =~ /ro/ and $mountedoptions[0] =~ /ro/;
+					return if $options =~ /rw/ and $mountedoptions[0] =~ /rw/;
+
+					# at this point requested options do not match
+					# mounted options. umount
+					$rc = system("umount $mtpt");
+					die "Could not umount $label from $mtpt, $mountedoptions[0] are different to requested options: $!\n" unless $rc == 0;
+					print "umounted $label from $mtpt, mounted options $mountedoptions[0], requested options $options\n";
+
+				} # end of if not defined options
+				
 			} else {
 				# mounted in wrong place and only mounted once
 				# un mount and remount
@@ -90,10 +131,10 @@ sub mountdevice {
 		# no options were defined
 		$rc = system("mount -L $label $mtpt");
 		die "Could not mount $label at $mtpt: $!\n" unless $rc == 0;
-		print "mounted $label at $mtpt\n";
+		print "mounted $label at $mtpt with options rw\n";
 	}
 	
 		
 }
 	
-mountdevice("ad64", "/mnt/ad64", "ro");		
+mountdevice("ad64", "/mnt/ad64");		
