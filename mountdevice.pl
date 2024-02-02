@@ -5,7 +5,7 @@ use warnings;
 use Getopt::Std;
 use File::Basename;
 
-my @ARGv;
+my @ARGV;
 
 ###################################################
 # sub to mount devices
