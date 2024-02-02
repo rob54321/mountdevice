@@ -5,6 +5,8 @@ use warnings;
 use Getopt::Std;
 use File::Basename;
 
+my @ARGv;
+
 ###################################################
 # sub to mount devices
 # check to see if device is mounted in correct place.
@@ -27,8 +29,6 @@ sub mountdevice {
 	# return codes
 	my $rc;
 
-	# flag for indicating if a correct mount is found
-	my $correctmountpoint = "false";
 	# list for mounted options
 	# to compare to requested options
 	my @mountedoptions;
@@ -73,11 +73,15 @@ sub mountdevice {
 					}
 				} else {
 					# requested options are defined,
+					# could be rw or ro. not interested in others
 					# can only be ro or rw
 					# if mounted options are the same as requested options
 					# then return else umount.
-					return if $options =~ /ro/ and $mountedoptions[0] =~ /ro/;
-					return if $options =~ /rw/ and $mountedoptions[0] =~ /rw/;
+					
+					if (($options =~ /ro/ and $mountedoptions[0] =~ /ro/) or ($options =~ /rw/ and $mountedoptions[0] =~ /rw/)) {
+						print "$label is mounted with options $mountedoptions[0] at $mtpt\n";
+						return;
+					}
 
 					# at this point requested options do not match
 					# mounted options. umount
@@ -99,6 +103,9 @@ sub mountdevice {
 			# @target > 1
 			# umount all wrong mount points
 			# mark if one of the mounts is correct
+			# flag to indicate if correctly mounted
+			my $correctlymounted = "false";
+
 			foreach my $item (@target) {
 				if ("$item" ne "$mtpt") {
 					# wrong mount point, umount it
@@ -106,19 +113,48 @@ sub mountdevice {
 					die "Could not umount $label from $item: $!\n" unless $rc == 0;
 				} else {
 					# correct mount point
-					# set a flag to indicate
-					# a mount point is correct
-					$correctmountpoint = "true";
-					print "$label is mounted multiple times, also at $item\n";
+					# compare mounted options and requested options
+					# if they are the same set flag to true
+					# if the are different do not set the flag
+					# if options not defined the option is rw
+					@mountedoptions = `findmnt --source LABEL=$label -o OPTIONS`;
+					shift @mountedoptions;
+					chomp @mountedoptions;
+
+					if (! defined($options)) {
+						# requested option is rw
+						# check mounted option
+						if ($mountedoptions[0] =~ /rw/) {
+							# correctly mounted with correct rw or ro
+							print "$label is mounted with options $mountedoptions[0] at $mtpt\n";
+							$correctlymounted = "true";
+						} else {
+							# mounted options and requested options are different
+							$rc = system("umount -v $mtpt");
+							die "Could not umount $label from $mtpt: $!\n" unless $rc == 0;
+							print "umounting $label from $mtpt mounted options = $mountedoptions[0], requested options = rw\n";
+						}
+					} else {
+						# options is defined
+						# compare mounted options to requested options
+						if (($options =~ /ro/ and $mountedoptions[0] =~ /ro/) or ($options =~ /rw/ and $mountedoptions[0] =~ /rw/)) {
+							print "$label is mounted with options $mountedoptions[0] at $mtpt\n";
+							$correctlymounted = "true";
+						} else {
+							# mounted options and requested options are different
+							$rc = system("umount -v $mtpt");
+							die "Could not umount $label from $mtpt: $!\n" unless $rc == 0;
+							print "umounting $label from $mtpt mounted options = $mountedoptions[0], requested options = $options\n";
+						}
+					} # end of if not defined options
 				}
 			}
+			# if device is correctly mounted return
+			# all umounts of wrong locations already done
+			return if "$correctlymounted" eq "true";
 		} # end of if target == 1
 
 	} # end of if target
-
-	# if a correct mount point was found , return.
-	# all other mount points would have been umounted
-	return if "$correctmountpoint" eq "true";
 
 	# now mount the device and make directory if it does not exist
 	mkdir $mtpt unless -d $mtpt;
@@ -136,5 +172,8 @@ sub mountdevice {
 	
 		
 }
-	
-mountdevice("ad64", "/mnt/ad64");		
+if ($ARGV[0]) {	
+	mountdevice("ad64", "/mnt/ad64", "$ARGV[0]");
+} else {
+	mountdevice("ad64", "/mnt/ad64");
+}
