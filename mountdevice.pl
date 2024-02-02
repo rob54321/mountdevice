@@ -5,8 +5,6 @@ use warnings;
 use Getopt::Std;
 use File::Basename;
 
-my @ARGv;
-
 ###################################################
 # sub to mount devices
 # check to see if device is mounted in correct place.
