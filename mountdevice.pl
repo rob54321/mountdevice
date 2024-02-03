@@ -2,8 +2,6 @@
 
 use strict;
 use warnings;
-use Getopt::Std;
-use File::Basename;
 
 ###################################################
 # sub to mount devices
