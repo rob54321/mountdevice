@@ -46,8 +46,9 @@ sub mountdevice {
 	}
 
 	# mount the device
-	$rc = system("mount -v -L $label -o $options $mtpt");
+	$rc = system("mount -L $label -o $options $mtpt");
 	die "Could not mount $label at $mtpt -o $options: $!\n" unless $rc == 0;
+	print "mounted $label at $mtpt options: $options\n";
 }
 if ($ARGV[0]) {	
 	mountdevice("ad64", "/mnt/ad64", "$ARGV[0]");
