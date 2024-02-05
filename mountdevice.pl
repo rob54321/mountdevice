@@ -11,9 +11,8 @@ use warnings;
 # finish and klaar
 # returns:
 # 0 success and was not mounted
-# 1 success and was mounted at correct mountpoint only
-# 2 success and was mounted multiple times including correct mountpoint
-# 3 success and was mounted multiple times but not at correct mountpoint
+# +n success mounted n times including at correct location
+# -n success mounted n times and not at correct location
 # on failure script will die.
 ###################################################
 sub mountdevice {
@@ -50,10 +49,11 @@ sub mountdevice {
 
 		# umount all mounts
 		foreach my $item (@target) {
-			# umount 
+			# umount label
 			$rc = system("umount -v $item");
 			die "Could not umount $label from $item: $!\n" unless $rc == 0;
-
+			$noofmounts++;
+			
 			# if label was mounted at correct mountpoint
 			# set flag to enable return status
 			$wasmounted = "true" if "$item" eq "$mtpt";
@@ -65,14 +65,19 @@ sub mountdevice {
 	$rc = system("mount -L $label -o $options $mtpt");
 	die "Could not mount $label at $mtpt -o $options: $!\n" unless $rc == 0;
 	print "mounted $label at $mtpt options: $options\n";
+
 	if ("$wasmounted" eq "true") {
-		return 1;
+		return $noofmounts;
 	} else {
-		return 0;
+		return $noofmounts * -1;
 	}
 }
+my $rc;
+
 if ($ARGV[0]) {	
-	mountdevice("ad64", "/mnt/ad64", "$ARGV[0]");
+	$rc = mountdevice("ad64", "/mnt/ad64", "$ARGV[0]");
 } else {
-	mountdevice("ad64", "/mnt/ad64");
+	$rc = mountdevice("ad64", "/mnt/ad64");
 }
+
+print "mounted $rc time(s), positive/negative means ad64 was/not mouted at /mnt/ad64\n";
