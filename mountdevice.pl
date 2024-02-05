@@ -9,6 +9,12 @@ use warnings;
 # if mounted , umount all locations.
 # then mount with the options
 # finish and klaar
+# returns:
+# 0 success and was not mounted
+# 1 success and was mounted at correct mountpoint only
+# 2 success and was mounted multiple times including correct mountpoint
+# 3 success and was mounted multiple times but not at correct mountpoint
+# on failure script will die.
 ###################################################
 sub mountdevice {
 	# parameters
@@ -26,7 +32,13 @@ sub mountdevice {
 
 	# return codes
 	my $rc;
-		
+
+	# flag to indicate it was mounted
+	my $wasmounted = "false";
+
+	# indicates no of mounts
+	my $noofmounts = 0;
+			
 	#@target = ("TARGET", mountpoint)
 	# it may be mounted at multiple locations
 	# one of the locations may or may not be correct
@@ -41,6 +53,10 @@ sub mountdevice {
 			# umount 
 			$rc = system("umount -v $item");
 			die "Could not umount $label from $item: $!\n" unless $rc == 0;
+
+			# if label was mounted at correct mountpoint
+			# set flag to enable return status
+			$wasmounted = "true" if "$item" eq "$mtpt";
 		}
 		# all mounts now un mounted for the device
 	}
@@ -49,6 +65,11 @@ sub mountdevice {
 	$rc = system("mount -L $label -o $options $mtpt");
 	die "Could not mount $label at $mtpt -o $options: $!\n" unless $rc == 0;
 	print "mounted $label at $mtpt options: $options\n";
+	if ("$wasmounted" eq "true") {
+		return 1;
+	} else {
+		return 0;
+	}
 }
 if ($ARGV[0]) {	
 	mountdevice("ad64", "/mnt/ad64", "$ARGV[0]");
